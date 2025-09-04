@@ -1,0 +1,11 @@
+# Compiled class files
+*.class
+
+# Package Files
+*.jar
+
+# macOS
+.DS_Store
+
+## Visual Studio Code
+.vscode/
