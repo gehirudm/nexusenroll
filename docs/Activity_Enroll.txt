@@ -1,0 +1,4 @@
+Activity Diagram (Enroll)
+[Start] -> Check prerequisites -> Check capacity -> Check time conflict
+-> All checks pass? Yes -> Create Enrollment -> Update Course roster and Student enrollments -> Publish event -> [End]
+If any check fails -> return failure -> [End]

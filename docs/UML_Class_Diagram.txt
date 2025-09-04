@@ -1,0 +1,19 @@
+UML Class Diagram (textual summary)
+
+Classes:
+ - Student (id, name, completedCourses, enrollments)
+ - Course (code, name, capacity, prerequisites, roster)
+ - Enrollment (student, course)
+ - EnrollmentManager (enroll, drop) -- uses EnrollmentValidatorFactory and MessageBroker
+ - EnrollmentValidator (interface) -> PrerequisiteValidator, CapacityValidator, TimeConflictValidator (Strategy)
+ - EnrollmentValidatorFactory (Factory Method)
+ - NotificationService (Singleton) and MessageBroker (Observer)
+ - Grade (has GradeState) -> PendingState, SubmittedState, FinalState (State pattern)
+ - ReportGenerator (interface) <- ReportAdapter adapts ConcreteCsvReportGenerator (Adapter)
+ - ServicesFacade (Facade)
+
+Relationships:
+ - Student 1..* Enrollment *..1 Course
+ - EnrollmentManager uses validators (composition)
+ - MessageBroker publishes events to NotificationService listeners (observer)
+

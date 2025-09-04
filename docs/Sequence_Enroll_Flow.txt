@@ -1,0 +1,11 @@
+Sequence Diagram (Enroll Flow) - textual
+
+Student -> EnrollmentManager: request enroll(student, course)
+EnrollmentManager -> EnrollmentValidatorFactory: createValidators()
+EnrollmentManager -> PrerequisiteValidator/CapacityValidator/TimeConflictValidator: validate(...)
+EnrollmentManager -> Course: addEnrollment(enrollment)
+EnrollmentManager -> Student: addEnrollment(enrollment)
+EnrollmentManager -> MessageBroker: publish("enrollment", ...)
+MessageBroker -> NotificationService: notifyAll(...)
+NotificationService -> Listeners: onNotify(...)
+
