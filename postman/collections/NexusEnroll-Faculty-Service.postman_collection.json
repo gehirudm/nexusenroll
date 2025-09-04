@@ -1,0 +1,557 @@
+{
+	"info": {
+		"_postman_id": "faculty-service-collection",
+		"name": "NexusEnroll - Faculty Service",
+		"description": "Postman collection for testing the Faculty Service microservice (port 8082). Handles course roster viewing and grade submissions.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Health Check",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Service is healthy\", function () {",
+							"    const jsonData = pm.response.json();",
+							"    pm.expect(jsonData.status).to.eql('healthy');",
+							"    pm.expect(jsonData.service).to.eql('faculty');",
+							"    pm.expect(jsonData.port).to.eql(8082);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/health",
+					"host": ["{{baseUrl}}"],
+					"path": ["health"]
+				},
+				"description": "Health check endpoint to verify the Faculty Service is running"
+			},
+			"response": []
+		},
+		{
+			"name": "View Course Roster",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Roster data structure is valid\", function () {",
+							"    const jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('courseId');",
+							"    pm.expect(jsonData).to.have.property('courseName');",
+							"    pm.expect(jsonData).to.have.property('students');",
+							"    pm.expect(jsonData.students).to.be.an('array');",
+							"});",
+							"",
+							"pm.test(\"Course ID matches request\", function () {",
+							"    const jsonData = pm.response.json();",
+							"    const requestedCourseId = pm.request.url.path[1]; // courses/{{courseId}}/roster",
+							"    pm.expect(jsonData.courseId).to.eql(pm.variables.get('courseId') || requestedCourseId);",
+							"});",
+							"",
+							"// Store roster data for other tests",
+							"if (pm.response.code === 200) {",
+							"    const jsonData = pm.response.json();",
+							"    pm.environment.set('rosterSize', jsonData.students.length);",
+							"    if (jsonData.students.length > 0) {",
+							"        pm.environment.set('firstStudentId', jsonData.students[0].id);",
+							"    }",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/courses/{{courseId}}/roster",
+					"host": ["{{baseUrl}}"],
+					"path": ["courses", "{{courseId}}", "roster"]
+				},
+				"description": "View the enrollment roster for a specific course"
+			},
+			"response": [
+				{
+					"name": "Successful Roster Retrieval",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/courses/CS201/roster",
+							"host": ["{{baseUrl}}"],
+							"path": ["courses", "CS201", "roster"]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"courseId\": \"CS201\",\n    \"courseName\": \"Algorithms\",\n    \"students\": [\n        {\n            \"id\": \"S001\",\n            \"name\": \"Alice\"\n        },\n        {\n            \"id\": \"S002\",\n            \"name\": \"Bob\"\n        }\n    ]\n}"
+				}
+			]
+		},
+		{
+			"name": "Submit Grade",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200 for successful grade submission\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Grade submission response is valid\", function () {",
+							"    const jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('success');",
+							"    pm.expect(jsonData).to.have.property('message');",
+							"});",
+							"",
+							"if (pm.response.code === 200) {",
+							"    pm.test(\"Grade submission successful\", function () {",
+							"        const jsonData = pm.response.json();",
+							"        pm.expect(jsonData.success).to.be.true;",
+							"        pm.expect(jsonData.message).to.include('Grade');",
+							"        pm.expect(jsonData.message).to.include('submitted');",
+							"    });",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"studentId\": \"{{studentId}}\",\n    \"grade\": \"{{grade}}\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/courses/{{courseId}}/grades",
+					"host": ["{{baseUrl}}"],
+					"path": ["courses", "{{courseId}}", "grades"]
+				},
+				"description": "Submit a grade for a student in a specific course. Uses State pattern for grade lifecycle management."
+			},
+			"response": [
+				{
+					"name": "Successful Grade Submission",
+					"originalRequest": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"studentId\": \"S001\",\n    \"grade\": \"A\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/courses/CS201/grades",
+							"host": ["{{baseUrl}}"],
+							"path": ["courses", "CS201", "grades"]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"success\": true,\n    \"message\": \"Grade A submitted for student S001 in course CS201\"\n}"
+				}
+			]
+		},
+		{
+			"name": "Grade Submission Tests",
+			"item": [
+				{
+					"name": "Submit Grade A for Alice",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"studentId\": \"S001\",\n    \"grade\": \"A\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/courses/CS201/grades",
+							"host": ["{{baseUrl}}"],
+							"path": ["courses", "CS201", "grades"]
+						}
+					}
+				},
+				{
+					"name": "Submit Grade B for Bob",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"studentId\": \"S002\",\n    \"grade\": \"B\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/courses/CS201/grades",
+							"host": ["{{baseUrl}}"],
+							"path": ["courses", "CS201", "grades"]
+						}
+					}
+				},
+				{
+					"name": "Submit Grade C",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"studentId\": \"S001\",\n    \"grade\": \"C\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/courses/BUS101/grades",
+							"host": ["{{baseUrl}}"],
+							"path": ["courses", "BUS101", "grades"]
+						}
+					}
+				},
+				{
+					"name": "Submit Pass Grade",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"studentId\": \"S002\",\n    \"grade\": \"P\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/courses/BUS101/grades",
+							"host": ["{{baseUrl}}"],
+							"path": ["courses", "BUS101", "grades"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Error Scenarios",
+			"item": [
+				{
+					"name": "Course Not Found",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test(\"Error message contains 'Course not found'\", function () {",
+									"    const responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('Course not found');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/courses/CS999/roster",
+							"host": ["{{baseUrl}}"],
+							"path": ["courses", "CS999", "roster"]
+						}
+					}
+				},
+				{
+					"name": "Invalid Grade Letter",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Error response structure is valid\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('success');",
+									"    pm.expect(jsonData).to.have.property('message');",
+									"    pm.expect(jsonData.success).to.be.false;",
+									"});",
+									"",
+									"pm.test(\"Error message mentions invalid grade\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.include('Invalid grade letter');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"studentId\": \"S001\",\n    \"grade\": \"X\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/courses/CS201/grades",
+							"host": ["{{baseUrl}}"],
+							"path": ["courses", "CS201", "grades"]
+						}
+					}
+				},
+				{
+					"name": "Student Not Found for Grade",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test(\"Error message contains 'Student not found'\", function () {",
+									"    const responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('Student not found');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"studentId\": \"S999\",\n    \"grade\": \"A\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/courses/CS201/grades",
+							"host": ["{{baseUrl}}"],
+							"path": ["courses", "CS201", "grades"]
+						}
+					}
+				},
+				{
+					"name": "Course Not Found for Grade",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test(\"Error message contains 'Course not found'\", function () {",
+									"    const responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('Course not found');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"studentId\": \"S001\",\n    \"grade\": \"A\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/courses/CS999/grades",
+							"host": ["{{baseUrl}}"],
+							"path": ["courses", "CS999", "grades"]
+						}
+					}
+				},
+				{
+					"name": "Invalid Grade Submission Format",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Error message mentions invalid format\", function () {",
+									"    const responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('Invalid grade submission format');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"invalid\": \"data\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/courses/CS201/grades",
+							"host": ["{{baseUrl}}"],
+							"path": ["courses", "CS201", "grades"]
+						}
+					}
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Set default environment variables if not set",
+					"if (!pm.environment.get(\"baseUrl\")) {",
+					"    pm.environment.set(\"baseUrl\", \"http://localhost:8082\");",
+					"}",
+					"if (!pm.environment.get(\"courseId\")) {",
+					"    pm.environment.set(\"courseId\", \"CS201\");",
+					"}",
+					"if (!pm.environment.get(\"studentId\")) {",
+					"    pm.environment.set(\"studentId\", \"S001\");",
+					"}",
+					"if (!pm.environment.get(\"grade\")) {",
+					"    pm.environment.set(\"grade\", \"A\");",
+					"}"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global tests for all requests",
+					"pm.test(\"Response time is less than 2000ms\", function () {",
+					"    pm.expect(pm.response.responseTime).to.be.below(2000);",
+					"});",
+					"",
+					"if (pm.response.headers.get('Content-Type') && pm.response.headers.get('Content-Type').includes('application/json')) {",
+					"    pm.test(\"Response is valid JSON\", function () {",
+					"        pm.response.to.be.json;",
+					"    });",
+					"}"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8082",
+			"type": "string"
+		},
+		{
+			"key": "courseId",
+			"value": "CS201",
+			"type": "string"
+		},
+		{
+			"key": "studentId",
+			"value": "S001",
+			"type": "string"
+		},
+		{
+			"key": "grade",
+			"value": "A",
+			"type": "string"
+		}
+	]
+}

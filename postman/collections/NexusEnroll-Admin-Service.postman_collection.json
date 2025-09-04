@@ -1,0 +1,465 @@
+{
+	"info": {
+		"_postman_id": "admin-service-collection",
+		"name": "NexusEnroll - Admin Service",
+		"description": "Postman collection for testing the Admin Service microservice (port 8083). Handles enrollment reports and administrative overrides.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Health Check",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Service is healthy\", function () {",
+							"    const jsonData = pm.response.json();",
+							"    pm.expect(jsonData.status).to.eql('healthy');",
+							"    pm.expect(jsonData.service).to.eql('admin');",
+							"    pm.expect(jsonData.port).to.eql(8083);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/health",
+					"host": ["{{baseUrl}}"],
+					"path": ["health"]
+				},
+				"description": "Health check endpoint to verify the Admin Service is running"
+			},
+			"response": []
+		},
+		{
+			"name": "Generate Enrollment Report",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Report data structure is valid\", function () {",
+							"    const jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('report');",
+							"    pm.expect(jsonData).to.have.property('data');",
+							"    pm.expect(jsonData.report).to.eql('enrollment');",
+							"    pm.expect(jsonData.data).to.be.an('array');",
+							"});",
+							"",
+							"pm.test(\"Report contains course data\", function () {",
+							"    const jsonData = pm.response.json();",
+							"    if (jsonData.data.length > 0) {",
+							"        const firstCourse = jsonData.data[0];",
+							"        pm.expect(firstCourse).to.have.property('course');",
+							"        pm.expect(firstCourse).to.have.property('enrolled');",
+							"        pm.expect(firstCourse).to.have.property('capacity');",
+							"        pm.expect(firstCourse.enrolled).to.be.a('number');",
+							"        pm.expect(firstCourse.capacity).to.be.a('number');",
+							"    }",
+							"});",
+							"",
+							"// Store report data for comparison in later tests",
+							"if (pm.response.code === 200) {",
+							"    const jsonData = pm.response.json();",
+							"    pm.environment.set('reportCoursesCount', jsonData.data.length);",
+							"    if (jsonData.data.length > 0) {",
+							"        pm.environment.set('firstCourseEnrollment', jsonData.data[0].enrolled);",
+							"    }",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/admin/reports/enrollments",
+					"host": ["{{baseUrl}}"],
+					"path": ["admin", "reports", "enrollments"]
+				},
+				"description": "Generate a comprehensive enrollment report showing enrollment counts vs capacity for all courses. Uses Adapter pattern to convert CSV reports to JSON format."
+			},
+			"response": [
+				{
+					"name": "Successful Report Generation",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/admin/reports/enrollments",
+							"host": ["{{baseUrl}}"],
+							"path": ["admin", "reports", "enrollments"]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"report\": \"enrollment\",\n    \"data\": [\n        {\n            \"course\": \"CS201\",\n            \"enrolled\": 2,\n            \"capacity\": 2\n        },\n        {\n            \"course\": \"BUS101\",\n            \"enrolled\": 0,\n            \"capacity\": 50\n        }\n    ]\n}"
+				}
+			]
+		},
+		{
+			"name": "Force Add Student to Course",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200 for successful force add\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Force add response is valid\", function () {",
+							"    const jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('success');",
+							"    pm.expect(jsonData).to.have.property('message');",
+							"});",
+							"",
+							"if (pm.response.code === 200) {",
+							"    pm.test(\"Force add successful\", function () {",
+							"        const jsonData = pm.response.json();",
+							"        pm.expect(jsonData.success).to.be.true;",
+							"        pm.expect(jsonData.message).to.include('force-added');",
+							"        pm.expect(jsonData.message).to.include('enrollment count');",
+							"    });",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/admin/courses/{{courseId}}/students/{{studentId}}",
+					"host": ["{{baseUrl}}"],
+					"path": ["admin", "courses", "{{courseId}}", "students", "{{studentId}}"]
+				},
+				"description": "Force add a student to a course, bypassing normal enrollment validation. This is an administrative override function using the Facade pattern."
+			},
+			"response": [
+				{
+					"name": "Successful Force Add",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/admin/courses/BUS101/students/S002",
+							"host": ["{{baseUrl}}"],
+							"path": ["admin", "courses", "BUS101", "students", "S002"]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"success\": true,\n    \"message\": \"Student S002 force-added to course BUS101. New enrollment count: 1\"\n}"
+				}
+			]
+		},
+		{
+			"name": "Administrative Operations",
+			"item": [
+				{
+					"name": "Force Add Alice to BUS101",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/admin/courses/BUS101/students/S001",
+							"host": ["{{baseUrl}}"],
+							"path": ["admin", "courses", "BUS101", "students", "S001"]
+						}
+					}
+				},
+				{
+					"name": "Force Add Bob to BUS101",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/admin/courses/BUS101/students/S002",
+							"host": ["{{baseUrl}}"],
+							"path": ["admin", "courses", "BUS101", "students", "S002"]
+						}
+					}
+				},
+				{
+					"name": "Force Add Alice to CS201 (Capacity Override)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/admin/courses/CS201/students/S001",
+							"host": ["{{baseUrl}}"],
+							"path": ["admin", "courses", "CS201", "students", "S001"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Report Workflow",
+			"item": [
+				{
+					"name": "1. Initial Report",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Initial report generated\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    const jsonData = pm.response.json();",
+									"    pm.environment.set('initialReportData', JSON.stringify(jsonData.data));",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/admin/reports/enrollments",
+							"host": ["{{baseUrl}}"],
+							"path": ["admin", "reports", "enrollments"]
+						}
+					}
+				},
+				{
+					"name": "2. Perform Admin Operation",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/admin/courses/BUS101/students/S001",
+							"host": ["{{baseUrl}}"],
+							"path": ["admin", "courses", "BUS101", "students", "S001"]
+						}
+					}
+				},
+				{
+					"name": "3. Updated Report",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Updated report shows changes\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    const jsonData = pm.response.json();",
+									"    const initialData = JSON.parse(pm.environment.get('initialReportData') || '[]');",
+									"    ",
+									"    // Check if enrollment count increased for at least one course",
+									"    let enrollmentChanged = false;",
+									"    for (let i = 0; i < jsonData.data.length; i++) {",
+									"        if (initialData[i] && jsonData.data[i].enrolled > initialData[i].enrolled) {",
+									"            enrollmentChanged = true;",
+									"            break;",
+									"        }",
+									"    }",
+									"    ",
+									"    if (initialData.length > 0) {",
+									"        pm.expect(enrollmentChanged).to.be.true;",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/admin/reports/enrollments",
+							"host": ["{{baseUrl}}"],
+							"path": ["admin", "reports", "enrollments"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Error Scenarios",
+			"item": [
+				{
+					"name": "Student Not Found",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test(\"Error message contains 'Student not found'\", function () {",
+									"    const responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('Student not found');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/admin/courses/BUS101/students/S999",
+							"host": ["{{baseUrl}}"],
+							"path": ["admin", "courses", "BUS101", "students", "S999"]
+						}
+					}
+				},
+				{
+					"name": "Course Not Found",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test(\"Error message contains 'Course not found'\", function () {",
+									"    const responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('Course not found');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/admin/courses/CS999/students/S001",
+							"host": ["{{baseUrl}}"],
+							"path": ["admin", "courses", "CS999", "students", "S001"]
+						}
+					}
+				},
+				{
+					"name": "Invalid Path Format",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Error message mentions invalid path format\", function () {",
+									"    const responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('Invalid path format');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/admin/courses/CS201",
+							"host": ["{{baseUrl}}"],
+							"path": ["admin", "courses", "CS201"]
+						}
+					}
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Set default environment variables if not set",
+					"if (!pm.environment.get(\"baseUrl\")) {",
+					"    pm.environment.set(\"baseUrl\", \"http://localhost:8083\");",
+					"}",
+					"if (!pm.environment.get(\"courseId\")) {",
+					"    pm.environment.set(\"courseId\", \"BUS101\");",
+					"}",
+					"if (!pm.environment.get(\"studentId\")) {",
+					"    pm.environment.set(\"studentId\", \"S002\");",
+					"}"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global tests for all requests",
+					"pm.test(\"Response time is less than 3000ms\", function () {",
+					"    pm.expect(pm.response.responseTime).to.be.below(3000);",
+					"});",
+					"",
+					"if (pm.response.headers.get('Content-Type') && pm.response.headers.get('Content-Type').includes('application/json')) {",
+					"    pm.test(\"Response is valid JSON\", function () {",
+					"        pm.response.to.be.json;",
+					"    });",
+					"}"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8083",
+			"type": "string"
+		},
+		{
+			"key": "courseId",
+			"value": "BUS101",
+			"type": "string"
+		},
+		{
+			"key": "studentId",
+			"value": "S002",
+			"type": "string"
+		}
+	]
+}
