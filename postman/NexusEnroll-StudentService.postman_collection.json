@@ -1,0 +1,340 @@
+{
+  "info": {
+    "name": "NexusEnroll - Student Service",
+    "description": "Postman collection for testing Student Service enrollment and drop operations",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "student-service-001"
+  },
+  "item": [
+    {
+      "name": "Success Cases",
+      "item": [
+        {
+          "name": "Enroll Student with Prerequisites - Success",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Setup test data",
+                  "pm.environment.set('current_student_id', pm.environment.get('test_student_id_1'));",
+                  "pm.environment.set('current_course_id', pm.environment.get('test_course_id_1'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response has enrollment details', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('studentId');",
+                  "    pm.expect(responseJson).to.have.property('courseId');",
+                  "    pm.expect(responseJson).to.have.property('enrollmentId');",
+                  "    pm.expect(responseJson.status).to.eql('enrolled');",
+                  "});",
+                  "",
+                  "pm.test('Enrollment notification published', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('message');",
+                  "    pm.expect(responseJson.message).to.include('enrolled');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": \"{{test_course_id_1}}\",\n  \"completedCourses\": [\"{{prerequisite_course_id}}\"]\n}"
+            },
+            "url": {
+              "raw": "{{student_service_url}}/api/students/{{test_student_id_1}}/enrollments",
+              "host": ["{{student_service_url}}"],
+              "path": ["api", "students", "{{test_student_id_1}}", "enrollments"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Drop Student from Course - Success", 
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Drop confirmation received', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.status).to.eql('dropped');",
+                  "    pm.expect(responseJson.message).to.include('dropped');",
+                  "});",
+                  "",
+                  "pm.test('Waitlist notification published', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('waitlistNotification');",
+                  "    pm.expect(responseJson.waitlistNotification).to.include('Seat opened');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{student_service_url}}/api/students/{{test_student_id_1}}/enrollments/{{test_course_id_1}}",
+              "host": ["{{student_service_url}}"],
+              "path": ["api", "students", "{{test_student_id_1}}", "enrollments", "{{test_course_id_1}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Student Enrollments - Success",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains enrollments array', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('enrollments');",
+                  "    pm.expect(responseJson.enrollments).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Each enrollment has required properties', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    if (responseJson.enrollments.length > 0) {",
+                  "        const enrollment = responseJson.enrollments[0];",
+                  "        pm.expect(enrollment).to.have.property('courseId');",
+                  "        pm.expect(enrollment).to.have.property('courseName');",
+                  "        pm.expect(enrollment).to.have.property('enrollmentDate');",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{student_service_url}}/api/students/{{test_student_id_1}}/enrollments",
+              "host": ["{{student_service_url}}"],
+              "path": ["api", "students", "{{test_student_id_1}}", "enrollments"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Failure Cases",
+      "item": [
+        {
+          "name": "Enroll Student without Prerequisites - Failure",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error message indicates missing prerequisites', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('error');",
+                  "    pm.expect(responseJson.error).to.include('prerequisite');",
+                  "    pm.expect(responseJson.validationFailure).to.eql('PrerequisiteValidator');",
+                  "});",
+                  "",
+                  "pm.test('Enrollment status is failed', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.status).to.eql('failed');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": \"{{test_course_id_1}}\",\n  \"completedCourses\": []\n}"
+            },
+            "url": {
+              "raw": "{{student_service_url}}/api/students/{{test_student_id_2}}/enrollments",
+              "host": ["{{student_service_url}}"],
+              "path": ["api", "students", "{{test_student_id_2}}", "enrollments"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Enroll Student in Full Course - Failure",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// This test assumes the course is already at capacity",
+                  "// In a real scenario, you might need to fill the course first"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 409 Conflict', function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});",
+                  "",
+                  "pm.test('Error message indicates course is full', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('error');",
+                  "    pm.expect(responseJson.error).to.include('full');",
+                  "    pm.expect(responseJson.validationFailure).to.eql('CapacityValidator');",
+                  "});",
+                  "",
+                  "pm.test('Available capacity is zero', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.availableCapacity).to.eql(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": \"{{test_course_id_1}}\",\n  \"completedCourses\": [\"{{prerequisite_course_id}}\"]\n}"
+            },
+            "url": {
+              "raw": "{{student_service_url}}/api/students/{{test_student_id_2}}/enrollments",
+              "host": ["{{student_service_url}}"],
+              "path": ["api", "students", "{{test_student_id_2}}", "enrollments"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Enroll Student with Time Conflict - Failure",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 409 Conflict', function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});",
+                  "",
+                  "pm.test('Error message indicates time conflict', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('error');",
+                  "    pm.expect(responseJson.error).to.include('time conflict');",
+                  "    pm.expect(responseJson.validationFailure).to.eql('TimeConflictValidator');",
+                  "});",
+                  "",
+                  "pm.test('Conflicting course details provided', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('conflictingCourse');",
+                  "    pm.expect(responseJson).to.have.property('conflictingSchedule');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": \"CONFLICT101\",\n  \"completedCourses\": [],\n  \"currentEnrollments\": [{\n    \"courseId\": \"{{test_course_id_1}}\",\n    \"schedule\": \"Mon9-11\"\n  }]\n}"
+            },
+            "url": {
+              "raw": "{{student_service_url}}/api/students/{{test_student_id_1}}/enrollments",
+              "host": ["{{student_service_url}}"],
+              "path": ["api", "students", "{{test_student_id_1}}", "enrollments"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Drop Student Not Enrolled - Failure",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 404 Not Found', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test('Error message indicates student not enrolled', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('error');",
+                  "    pm.expect(responseJson.error).to.include('not enrolled');",
+                  "});",
+                  "",
+                  "pm.test('No enrollment found', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.enrollmentFound).to.be.false;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{student_service_url}}/api/students/{{test_student_id_2}}/enrollments/NONEXISTENT101",
+              "host": ["{{student_service_url}}"],
+              "path": ["api", "students", "{{test_student_id_2}}", "enrollments", "NONEXISTENT101"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

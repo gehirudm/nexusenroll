@@ -1,0 +1,137 @@
+{
+  "name": "NexusEnroll Newman Test Configuration",
+  "description": "Configuration for running NexusEnroll Postman collections via Newman CLI",
+  "version": "1.0.0",
+  "collections": [
+    {
+      "name": "Student Service Tests",
+      "file": "NexusEnroll-StudentService.postman_collection.json",
+      "environment": "NexusEnroll-Environment.postman_environment.json",
+      "options": {
+        "reporters": ["cli", "json", "junit"],
+        "reporter": {
+          "junit": {
+            "export": "results/student-service-results.xml"
+          },
+          "json": {
+            "export": "results/student-service-results.json"
+          }
+        },
+        "timeout": 10000,
+        "delayRequest": 500,
+        "bail": false,
+        "color": "auto"
+      }
+    },
+    {
+      "name": "Faculty Service Tests", 
+      "file": "NexusEnroll-FacultyService.postman_collection.json",
+      "environment": "NexusEnroll-Environment.postman_environment.json",
+      "options": {
+        "reporters": ["cli", "json", "junit"],
+        "reporter": {
+          "junit": {
+            "export": "results/faculty-service-results.xml"
+          },
+          "json": {
+            "export": "results/faculty-service-results.json"
+          }
+        },
+        "timeout": 10000,
+        "delayRequest": 500,
+        "bail": false,
+        "color": "auto"
+      }
+    },
+    {
+      "name": "Admin Service Tests",
+      "file": "NexusEnroll-AdminService.postman_collection.json", 
+      "environment": "NexusEnroll-Environment.postman_environment.json",
+      "options": {
+        "reporters": ["cli", "json", "junit"],
+        "reporter": {
+          "junit": {
+            "export": "results/admin-service-results.xml"
+          },
+          "json": {
+            "export": "results/admin-service-results.json"
+          }
+        },
+        "timeout": 10000,
+        "delayRequest": 500,
+        "bail": false,
+        "color": "auto"
+      }
+    },
+    {
+      "name": "Complete Test Suite",
+      "file": "NexusEnroll-CompleteTestSuite.postman_collection.json",
+      "environment": "NexusEnroll-Environment.postman_environment.json", 
+      "options": {
+        "reporters": ["cli", "json", "junit", "html"],
+        "reporter": {
+          "junit": {
+            "export": "results/complete-suite-results.xml"
+          },
+          "json": {
+            "export": "results/complete-suite-results.json"
+          },
+          "html": {
+            "export": "results/complete-suite-results.html"
+          }
+        },
+        "timeout": 15000,
+        "delayRequest": 1000,
+        "bail": false,
+        "color": "auto",
+        "verbose": true
+      }
+    }
+  ],
+  "scripts": {
+    "test-all": "npm run test-student && npm run test-faculty && npm run test-admin && npm run test-integration",
+    "test-student": "newman run NexusEnroll-StudentService.postman_collection.json -e NexusEnroll-Environment.postman_environment.json --reporters cli,json,junit --reporter-junit-export results/student-service-results.xml --timeout 10000",
+    "test-faculty": "newman run NexusEnroll-FacultyService.postman_collection.json -e NexusEnroll-Environment.postman_environment.json --reporters cli,json,junit --reporter-junit-export results/faculty-service-results.xml --timeout 10000", 
+    "test-admin": "newman run NexusEnroll-AdminService.postman_collection.json -e NexusEnroll-Environment.postman_environment.json --reporters cli,json,junit --reporter-junit-export results/admin-service-results.xml --timeout 10000",
+    "test-integration": "newman run NexusEnroll-CompleteTestSuite.postman_collection.json -e NexusEnroll-Environment.postman_environment.json --reporters cli,json,junit,html --reporter-junit-export results/complete-suite-results.xml --reporter-html-export results/complete-suite-results.html --timeout 15000 --verbose"
+  },
+  "prerequisites": [
+    "npm install -g newman",
+    "npm install -g newman-reporter-html",
+    "mkdir -p results"
+  ],
+  "usage": {
+    "install_newman": "npm install -g newman newman-reporter-html",
+    "setup_directories": "mkdir -p results",
+    "run_individual_tests": {
+      "student_service": "newman run NexusEnroll-StudentService.postman_collection.json -e NexusEnroll-Environment.postman_environment.json",
+      "faculty_service": "newman run NexusEnroll-FacultyService.postman_collection.json -e NexusEnroll-Environment.postman_environment.json", 
+      "admin_service": "newman run NexusEnroll-AdminService.postman_collection.json -e NexusEnroll-Environment.postman_environment.json",
+      "complete_suite": "newman run NexusEnroll-CompleteTestSuite.postman_collection.json -e NexusEnroll-Environment.postman_environment.json"
+    },
+    "run_with_reports": "newman run [collection.json] -e NexusEnroll-Environment.postman_environment.json --reporters cli,json,junit,html --reporter-junit-export results/results.xml --reporter-html-export results/results.html",
+    "ci_cd_integration": "newman run [collection.json] -e [environment.json] --reporters junit --reporter-junit-export test-results.xml --bail --timeout 30000"
+  },
+  "environment_setup": {
+    "local_development": {
+      "student_service_url": "http://localhost:8081",
+      "faculty_service_url": "http://localhost:8082", 
+      "admin_service_url": "http://localhost:8083"
+    },
+    "docker_compose": {
+      "student_service_url": "http://student-service:8081",
+      "faculty_service_url": "http://faculty-service:8082",
+      "admin_service_url": "http://admin-service:8083" 
+    },
+    "staging": {
+      "student_service_url": "https://nexusenroll-student-staging.example.com",
+      "faculty_service_url": "https://nexusenroll-faculty-staging.example.com",
+      "admin_service_url": "https://nexusenroll-admin-staging.example.com"
+    },
+    "production": {
+      "student_service_url": "https://nexusenroll-student.example.com",
+      "faculty_service_url": "https://nexusenroll-faculty.example.com", 
+      "admin_service_url": "https://nexusenroll-admin.example.com"
+    }
+  }
+}

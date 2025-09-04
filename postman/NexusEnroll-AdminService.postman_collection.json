@@ -1,0 +1,487 @@
+{
+  "info": {
+    "name": "NexusEnroll - Admin Service",
+    "description": "Postman collection for testing Admin Service reporting and administrative operations",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "admin-service-001"
+  },
+  "item": [
+    {
+      "name": "Success Cases",
+      "item": [
+        {
+          "name": "Generate Enrollment Report - Success",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains CSV report', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('report');",
+                  "    pm.expect(responseJson.reportFormat).to.eql('CSV');",
+                  "});",
+                  "",
+                  "pm.test('CSV report has proper structure', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    const csvData = responseJson.report;",
+                  "    pm.expect(csvData).to.include('Course,Enrolled,Capacity');",
+                  "    // Check for course data rows",
+                  "    const lines = csvData.split('\\n');",
+                  "    pm.expect(lines.length).to.be.at.least(2); // Header + at least one data row",
+                  "});",
+                  "",
+                  "pm.test('Report metadata is present', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('generatedAt');",
+                  "    pm.expect(responseJson).to.have.property('totalCourses');",
+                  "    pm.expect(responseJson).to.have.property('totalEnrollments');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{admin_service_url}}/api/reports/enrollments",
+              "host": ["{{admin_service_url}}"],
+              "path": ["api", "reports", "enrollments"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create New Course - Success",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Generate unique course ID for this test",
+                  "const timestamp = Date.now();",
+                  "pm.environment.set('new_course_id', 'TEST' + timestamp);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Course created successfully', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('courseId');",
+                  "    pm.expect(responseJson).to.have.property('courseName');",
+                  "    pm.expect(responseJson).to.have.property('capacity');",
+                  "    pm.expect(responseJson).to.have.property('schedule');",
+                  "});",
+                  "",
+                  "pm.test('Course details match request', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.courseId).to.eql(pm.environment.get('new_course_id'));",
+                  "    pm.expect(responseJson.courseName).to.eql('Test Course');",
+                  "    pm.expect(responseJson.capacity).to.eql(25);",
+                  "});",
+                  "",
+                  "pm.test('Course has empty roster initially', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.currentEnrollment).to.eql(0);",
+                  "    pm.expect(responseJson.availableSpots).to.eql(25);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": \"{{new_course_id}}\",\n  \"courseName\": \"Test Course\",\n  \"capacity\": 25,\n  \"schedule\": \"Wed2-4\",\n  \"prerequisites\": []\n}"
+            },
+            "url": {
+              "raw": "{{admin_service_url}}/api/courses",
+              "host": ["{{admin_service_url}}"],
+              "path": ["api", "courses"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Force Add Student to Course - Success",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Student force-added successfully', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('enrollmentId');",
+                  "    pm.expect(responseJson.status).to.eql('force-enrolled');",
+                  "    pm.expect(responseJson.bypassedValidations).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Force enrollment details correct', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.studentId).to.eql(pm.environment.get('test_student_id_1'));",
+                  "    pm.expect(responseJson.courseId).to.eql(pm.environment.get('test_course_id_2'));",
+                  "});",
+                  "",
+                  "pm.test('Validation bypass indicators present', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('adminOverride');",
+                  "    pm.expect(responseJson.adminOverride).to.be.true;",
+                  "    pm.expect(responseJson).to.have.property('adminUserId');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer admin-token-123"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"{{test_student_id_1}}\",\n  \"courseId\": \"{{test_course_id_2}}\",\n  \"reason\": \"Administrative override for special case\",\n  \"adminUserId\": \"ADMIN001\"\n}"
+            },
+            "url": {
+              "raw": "{{admin_service_url}}/api/admin/enrollments",
+              "host": ["{{admin_service_url}}"],
+              "path": ["api", "admin", "enrollments"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Course Capacity - Success",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Course capacity updated successfully', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('courseId');",
+                  "    pm.expect(responseJson.newCapacity).to.eql(30);",
+                  "    pm.expect(responseJson.previousCapacity).to.be.a('number');",
+                  "});",
+                  "",
+                  "pm.test('Capacity change details recorded', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('capacityChange');",
+                  "    pm.expect(responseJson).to.have.property('updatedAt');",
+                  "    pm.expect(responseJson).to.have.property('updatedBy');",
+                  "});",
+                  "",
+                  "pm.test('Available spots recalculated', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('availableSpots');",
+                  "    pm.expect(responseJson.availableSpots).to.eql(responseJson.newCapacity - responseJson.currentEnrollment);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"capacity\": 30,\n  \"reason\": \"Increased demand for course\",\n  \"adminUserId\": \"ADMIN001\"\n}"
+            },
+            "url": {
+              "raw": "{{admin_service_url}}/api/courses/{{test_course_id_1}}",
+              "host": ["{{admin_service_url}}"],
+              "path": ["api", "courses", "{{test_course_id_1}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Failure Cases",
+      "item": [
+        {
+          "name": "Create Course with Duplicate ID - Failure",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 409 Conflict', function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});",
+                  "",
+                  "pm.test('Error message indicates course already exists', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('error');",
+                  "    pm.expect(responseJson.error).to.include('already exists');",
+                  "    pm.expect(responseJson.conflictingCourseId).to.eql(pm.environment.get('test_course_id_1'));",
+                  "});",
+                  "",
+                  "pm.test('Existing course details provided', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('existingCourse');",
+                  "    pm.expect(responseJson.existingCourse).to.have.property('courseId');",
+                  "    pm.expect(responseJson.existingCourse).to.have.property('courseName');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": \"{{test_course_id_1}}\",\n  \"courseName\": \"Duplicate Course\",\n  \"capacity\": 20,\n  \"schedule\": \"Fri1-3\",\n  \"prerequisites\": []\n}"
+            },
+            "url": {
+              "raw": "{{admin_service_url}}/api/courses",
+              "host": ["{{admin_service_url}}"],
+              "path": ["api", "courses"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Force Add with Invalid Student ID - Failure",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 404 Not Found', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test('Error message indicates student not found', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('error');",
+                  "    pm.expect(responseJson.error).to.include('Student not found');",
+                  "    pm.expect(responseJson.requestedStudentId).to.eql('INVALID999');",
+                  "});",
+                  "",
+                  "pm.test('No enrollment created', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.enrollmentCreated).to.be.false;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer admin-token-123"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"INVALID999\",\n  \"courseId\": \"{{test_course_id_1}}\",\n  \"reason\": \"Testing invalid student ID\",\n  \"adminUserId\": \"ADMIN001\"\n}"
+            },
+            "url": {
+              "raw": "{{admin_service_url}}/api/admin/enrollments",
+              "host": ["{{admin_service_url}}"],
+              "path": ["api", "admin", "enrollments"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Force Add with Invalid Course ID - Failure",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 404 Not Found', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test('Error message indicates course not found', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('error');",
+                  "    pm.expect(responseJson.error).to.include('Course not found');",
+                  "    pm.expect(responseJson.requestedCourseId).to.eql('INVALID999');",
+                  "});",
+                  "",
+                  "pm.test('Suggested courses provided', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('availableCourses');",
+                  "    pm.expect(responseJson.availableCourses).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer admin-token-123"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"{{test_student_id_1}}\",\n  \"courseId\": \"INVALID999\",\n  \"reason\": \"Testing invalid course ID\",\n  \"adminUserId\": \"ADMIN001\"\n}"
+            },
+            "url": {
+              "raw": "{{admin_service_url}}/api/admin/enrollments",
+              "host": ["{{admin_service_url}}"],
+              "path": ["api", "admin", "enrollments"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Course with Invalid Capacity - Failure",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error message indicates invalid capacity', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('error');",
+                  "    pm.expect(responseJson.error).to.include('Invalid capacity');",
+                  "    pm.expect(responseJson.error).to.include('current enrollment');",
+                  "});",
+                  "",
+                  "pm.test('Current enrollment and constraints provided', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('currentEnrollment');",
+                  "    pm.expect(responseJson).to.have.property('minimumCapacity');",
+                  "    pm.expect(responseJson.minimumCapacity).to.eql(responseJson.currentEnrollment);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"capacity\": 1,\n  \"reason\": \"Testing invalid capacity (below current enrollment)\",\n  \"adminUserId\": \"ADMIN001\"\n}"
+            },
+            "url": {
+              "raw": "{{admin_service_url}}/api/courses/{{test_course_id_1}}",
+              "host": ["{{admin_service_url}}"],
+              "path": ["api", "courses", "{{test_course_id_1}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Unauthorized Access - Failure",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 401 Unauthorized', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Error message indicates authentication required', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('error');",
+                  "    pm.expect(responseJson.error).to.include('authentication required');",
+                  "});",
+                  "",
+                  "pm.test('Required authentication method specified', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('requiredAuth');",
+                  "    pm.expect(responseJson.requiredAuth).to.include('Bearer token');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"{{test_student_id_1}}\",\n  \"courseId\": \"{{test_course_id_1}}\",\n  \"reason\": \"Testing unauthorized access\",\n  \"adminUserId\": \"ADMIN001\"\n}"
+            },
+            "url": {
+              "raw": "{{admin_service_url}}/api/admin/enrollments",
+              "host": ["{{admin_service_url}}"],
+              "path": ["api", "admin", "enrollments"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

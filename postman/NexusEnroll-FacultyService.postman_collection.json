@@ -1,0 +1,409 @@
+{
+  "info": {
+    "name": "NexusEnroll - Faculty Service",
+    "description": "Postman collection for testing Faculty Service grade management and roster operations",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "faculty-service-001"
+  },
+  "item": [
+    {
+      "name": "Success Cases",
+      "item": [
+        {
+          "name": "View Course Roster - Success",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains roster information', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('courseId');",
+                  "    pm.expect(responseJson).to.have.property('courseName');",
+                  "    pm.expect(responseJson).to.have.property('roster');",
+                  "    pm.expect(responseJson.roster).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Each roster entry has student details', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    if (responseJson.roster.length > 0) {",
+                  "        const student = responseJson.roster[0];",
+                  "        pm.expect(student).to.have.property('studentId');",
+                  "        pm.expect(student).to.have.property('studentName');",
+                  "        pm.expect(student).to.have.property('enrollmentDate');",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('Enrollment count matches roster size', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.enrollmentCount).to.eql(responseJson.roster.length);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{faculty_service_url}}/api/courses/{{test_course_id_1}}/roster",
+              "host": ["{{faculty_service_url}}"],
+              "path": ["api", "courses", "{{test_course_id_1}}", "roster"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Submit Valid Grade - Success",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Grade submission successful', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('gradeId');",
+                  "    pm.expect(responseJson.status).to.eql('submitted');",
+                  "    pm.expect(responseJson.gradeLetter).to.eql('A');",
+                  "});",
+                  "",
+                  "pm.test('Grade state is Submitted', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.gradeState).to.eql('Submitted');",
+                  "});",
+                  "",
+                  "pm.test('Student and course information present', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.studentId).to.eql(pm.environment.get('test_student_id_1'));",
+                  "    pm.expect(responseJson.courseId).to.eql(pm.environment.get('test_course_id_1'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"{{test_student_id_1}}\",\n  \"gradeLetter\": \"A\",\n  \"gradePoints\": 4.0\n}"
+            },
+            "url": {
+              "raw": "{{faculty_service_url}}/api/courses/{{test_course_id_1}}/grades",
+              "host": ["{{faculty_service_url}}"],
+              "path": ["api", "courses", "{{test_course_id_1}}", "grades"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Grade to Final State - Success",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Grade approved successfully', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.gradeState).to.eql('Final');",
+                  "    pm.expect(responseJson.status).to.eql('approved');",
+                  "});",
+                  "",
+                  "pm.test('Grade transition history recorded', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('stateHistory');",
+                  "    pm.expect(responseJson.stateHistory).to.include('Pending');",
+                  "    pm.expect(responseJson.stateHistory).to.include('Submitted');",
+                  "    pm.expect(responseJson.stateHistory).to.include('Final');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"approve\"\n}"
+            },
+            "url": {
+              "raw": "{{faculty_service_url}}/api/courses/{{test_course_id_1}}/grades/{{test_student_id_1}}",
+              "host": ["{{faculty_service_url}}"],
+              "path": ["api", "courses", "{{test_course_id_1}}", "grades", "{{test_student_id_1}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Batch Grade Submission - Success",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Batch submission processed', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('processedGrades');",
+                  "    pm.expect(responseJson.processedGrades).to.be.an('array');",
+                  "    pm.expect(responseJson.totalSubmitted).to.be.at.least(1);",
+                  "});",
+                  "",
+                  "pm.test('Success and failure counts reported', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('successCount');",
+                  "    pm.expect(responseJson).to.have.property('failureCount');",
+                  "    pm.expect(responseJson.successCount + responseJson.failureCount).to.eql(responseJson.totalSubmitted);",
+                  "});",
+                  "",
+                  "pm.test('Each grade result has required fields', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    responseJson.processedGrades.forEach(function(gradeResult) {",
+                  "        pm.expect(gradeResult).to.have.property('studentId');",
+                  "        pm.expect(gradeResult).to.have.property('status');",
+                  "        pm.expect(['success', 'failed']).to.include(gradeResult.status);",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grades\": [\n    {\n      \"studentId\": \"{{test_student_id_1}}\",\n      \"gradeLetter\": \"A\"\n    },\n    {\n      \"studentId\": \"{{test_student_id_2}}\",\n      \"gradeLetter\": \"B\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{faculty_service_url}}/api/courses/{{test_course_id_1}}/grades/batch",
+              "host": ["{{faculty_service_url}}"],
+              "path": ["api", "courses", "{{test_course_id_1}}", "grades", "batch"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Failure Cases",
+      "item": [
+        {
+          "name": "Submit Invalid Grade Letter - Failure",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error message indicates invalid grade letter', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('error');",
+                  "    pm.expect(responseJson.error).to.include('Invalid grade letter');",
+                  "    pm.expect(responseJson.invalidGradeLetter).to.eql('{{invalid_grade_letter}}');",
+                  "});",
+                  "",
+                  "pm.test('Valid grade letters provided in error response', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('validGradeLetters');",
+                  "    pm.expect(responseJson.validGradeLetters).to.include('A');",
+                  "    pm.expect(responseJson.validGradeLetters).to.include('F');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"{{test_student_id_2}}\",\n  \"gradeLetter\": \"{{invalid_grade_letter}}\",\n  \"gradePoints\": 0.0\n}"
+            },
+            "url": {
+              "raw": "{{faculty_service_url}}/api/courses/{{test_course_id_1}}/grades",
+              "host": ["{{faculty_service_url}}"],
+              "path": ["api", "courses", "{{test_course_id_1}}", "grades"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Submit Grade for Final Grade - Failure",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 409 Conflict', function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});",
+                  "",
+                  "pm.test('Error message indicates grade is final', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('error');",
+                  "    pm.expect(responseJson.error).to.include('final');",
+                  "    pm.expect(responseJson.error).to.include('cannot submit');",
+                  "});",
+                  "",
+                  "pm.test('Current grade state is Final', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.currentGradeState).to.eql('Final');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"{{test_student_id_1}}\",\n  \"gradeLetter\": \"B\",\n  \"gradePoints\": 3.0\n}"
+            },
+            "url": {
+              "raw": "{{faculty_service_url}}/api/courses/{{test_course_id_1}}/grades",
+              "host": ["{{faculty_service_url}}"],
+              "path": ["api", "courses", "{{test_course_id_1}}", "grades"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "View Roster for Nonexistent Course - Failure",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 404 Not Found', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test('Error message indicates course not found', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('error');",
+                  "    pm.expect(responseJson.error).to.include('Course not found');",
+                  "    pm.expect(responseJson.requestedCourseId).to.eql('NONEXISTENT999');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{faculty_service_url}}/api/courses/NONEXISTENT999/roster",
+              "host": ["{{faculty_service_url}}"],
+              "path": ["api", "courses", "NONEXISTENT999", "roster"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Batch Grade Submission with Errors - Mixed Results",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 207 Multi-Status', function () {",
+                  "    pm.response.to.have.status(207);",
+                  "});",
+                  "",
+                  "pm.test('Batch contains both success and failures', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.successCount).to.be.at.least(1);",
+                  "    pm.expect(responseJson.failureCount).to.be.at.least(1);",
+                  "});",
+                  "",
+                  "pm.test('Failed grades have error details', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    const failedGrades = responseJson.processedGrades.filter(g => g.status === 'failed');",
+                  "    failedGrades.forEach(function(failedGrade) {",
+                  "        pm.expect(failedGrade).to.have.property('error');",
+                  "        pm.expect(failedGrade.error).to.be.a('string');",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test('Successful grades have grade details', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    const successGrades = responseJson.processedGrades.filter(g => g.status === 'success');",
+                  "    successGrades.forEach(function(successGrade) {",
+                  "        pm.expect(successGrade).to.have.property('gradeId');",
+                  "        pm.expect(successGrade).to.have.property('gradeLetter');",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grades\": [\n    {\n      \"studentId\": \"{{test_student_id_1}}\",\n      \"gradeLetter\": \"A\"\n    },\n    {\n      \"studentId\": \"{{test_student_id_2}}\",\n      \"gradeLetter\": \"{{invalid_grade_letter}}\"\n    },\n    {\n      \"studentId\": \"NONEXISTENT\",\n      \"gradeLetter\": \"B\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{faculty_service_url}}/api/courses/{{test_course_id_1}}/grades/batch",
+              "host": ["{{faculty_service_url}}"],
+              "path": ["api", "courses", "{{test_course_id_1}}", "grades", "batch"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

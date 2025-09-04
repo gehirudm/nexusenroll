@@ -1,0 +1,498 @@
+{
+  "info": {
+    "name": "NexusEnroll - Complete Test Suite",
+    "description": "Master collection that runs comprehensive tests for all NexusEnroll microservices including integration scenarios",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "complete-test-suite-001"
+  },
+  "item": [
+    {
+      "name": "Setup and Health Checks",
+      "item": [
+        {
+          "name": "Student Service Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{student_service_url}}/api/health",
+              "host": ["{{student_service_url}}"],
+              "path": ["api", "health"]
+            }
+          }
+        },
+        {
+          "name": "Faculty Service Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{faculty_service_url}}/api/health",
+              "host": ["{{faculty_service_url}}"],
+              "path": ["api", "health"]
+            }
+          }
+        },
+        {
+          "name": "Admin Service Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{admin_service_url}}/api/health",
+              "host": ["{{admin_service_url}}"],
+              "path": ["api", "health"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Integration Test Scenarios",
+      "item": [
+        {
+          "name": "Complete Enrollment Workflow",
+          "item": [
+            {
+              "name": "1. Create Course (Admin)",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "exec": [
+                      "// Setup test course ID",
+                      "const timestamp = Date.now();",
+                      "pm.environment.set('integration_course_id', 'INT' + timestamp);",
+                      "pm.environment.set('integration_student_id', 'STU' + timestamp);"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Course created successfully', function () {",
+                      "    pm.expect(pm.response.code).to.eql(201);",
+                      "});",
+                      "",
+                      "// Store course details for next requests",
+                      "const courseData = pm.response.json();",
+                      "pm.environment.set('created_course_id', courseData.courseId);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"courseId\": \"{{integration_course_id}}\",\n  \"courseName\": \"Integration Test Course\",\n  \"capacity\": 5,\n  \"schedule\": \"Mon10-12\",\n  \"prerequisites\": []\n}"
+                },
+                "url": {
+                  "raw": "{{admin_service_url}}/api/courses",
+                  "host": ["{{admin_service_url}}"],
+                  "path": ["api", "courses"]
+                }
+              }
+            },
+            {
+              "name": "2. Enroll Student (Student Service)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Student enrolled successfully', function () {",
+                      "    pm.expect(pm.response.code).to.eql(201);",
+                      "});",
+                      "",
+                      "// Store enrollment details",
+                      "const enrollmentData = pm.response.json();",
+                      "pm.environment.set('enrollment_id', enrollmentData.enrollmentId);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"courseId\": \"{{integration_course_id}}\",\n  \"completedCourses\": []\n}"
+                },
+                "url": {
+                  "raw": "{{student_service_url}}/api/students/{{integration_student_id}}/enrollments",
+                  "host": ["{{student_service_url}}"],
+                  "path": ["api", "students", "{{integration_student_id}}", "enrollments"]
+                }
+              }
+            },
+            {
+              "name": "3. View Roster (Faculty Service)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Roster retrieved successfully', function () {",
+                      "    pm.expect(pm.response.code).to.eql(200);",
+                      "});",
+                      "",
+                      "pm.test('Student appears in roster', function () {",
+                      "    const rosterData = pm.response.json();",
+                      "    const studentFound = rosterData.roster.some(student => ",
+                      "        student.studentId === pm.environment.get('integration_student_id'));",
+                      "    pm.expect(studentFound).to.be.true;",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{faculty_service_url}}/api/courses/{{integration_course_id}}/roster",
+                  "host": ["{{faculty_service_url}}"],
+                  "path": ["api", "courses", "{{integration_course_id}}", "roster"]
+                }
+              }
+            },
+            {
+              "name": "4. Submit Grade (Faculty Service)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Grade submitted successfully', function () {",
+                      "    pm.expect(pm.response.code).to.eql(201);",
+                      "});",
+                      "",
+                      "// Store grade details",
+                      "const gradeData = pm.response.json();",
+                      "pm.environment.set('grade_id', gradeData.gradeId);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"studentId\": \"{{integration_student_id}}\",\n  \"gradeLetter\": \"A\",\n  \"gradePoints\": 4.0\n}"
+                },
+                "url": {
+                  "raw": "{{faculty_service_url}}/api/courses/{{integration_course_id}}/grades",
+                  "host": ["{{faculty_service_url}}"],
+                  "path": ["api", "courses", "{{integration_course_id}}", "grades"]
+                }
+              }
+            },
+            {
+              "name": "5. Generate Report (Admin Service)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Report generated successfully', function () {",
+                      "    pm.expect(pm.response.code).to.eql(200);",
+                      "});",
+                      "",
+                      "pm.test('Report includes our test course', function () {",
+                      "    const reportData = pm.response.json();",
+                      "    const courseId = pm.environment.get('integration_course_id');",
+                      "    pm.expect(reportData.report).to.include(courseId);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{admin_service_url}}/api/reports/enrollments",
+                  "host": ["{{admin_service_url}}"],
+                  "path": ["api", "reports", "enrollments"]
+                }
+              }
+            },
+            {
+              "name": "6. Drop Student (Student Service)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Student dropped successfully', function () {",
+                      "    pm.expect(pm.response.code).to.eql(200);",
+                      "});",
+                      "",
+                      "pm.test('Waitlist notification sent', function () {",
+                      "    const dropData = pm.response.json();",
+                      "    pm.expect(dropData.waitlistNotification).to.include('Seat opened');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{student_service_url}}/api/students/{{integration_student_id}}/enrollments/{{integration_course_id}}",
+                  "host": ["{{student_service_url}}"],
+                  "path": ["api", "students", "{{integration_student_id}}", "enrollments", "{{integration_course_id}}"]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Error Handling Scenarios",
+      "item": [
+        {
+          "name": "Cascade Failure Test",
+          "item": [
+            {
+              "name": "1. Attempt Grade for Non-enrolled Student",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Grade submission fails gracefully', function () {",
+                      "    pm.expect(pm.response.code).to.be.oneOf([400, 404]);",
+                      "});",
+                      "",
+                      "pm.test('Error message is descriptive', function () {",
+                      "    const errorData = pm.response.json();",
+                      "    pm.expect(errorData.error).to.be.a('string');",
+                      "    pm.expect(errorData.error.length).to.be.greaterThan(10);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"studentId\": \"NONEXISTENT999\",\n  \"gradeLetter\": \"A\",\n  \"gradePoints\": 4.0\n}"
+                },
+                "url": {
+                  "raw": "{{faculty_service_url}}/api/courses/{{test_course_id_1}}/grades",
+                  "host": ["{{faculty_service_url}}"],
+                  "path": ["api", "courses", "{{test_course_id_1}}", "grades"]
+                }
+              }
+            },
+            {
+              "name": "2. Attempt Enrollment with Multiple Validation Failures",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Multiple validation errors reported', function () {",
+                      "    pm.expect(pm.response.code).to.eql(400);",
+                      "    const errorData = pm.response.json();",
+                      "    pm.expect(errorData.validationErrors).to.be.an('array');",
+                      "    pm.expect(errorData.validationErrors.length).to.be.greaterThan(1);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"courseId\": \"{{test_course_id_1}}\",\n  \"completedCourses\": [],\n  \"currentEnrollments\": [{\n    \"courseId\": \"CONFLICT101\",\n    \"schedule\": \"Mon9-11\"\n  }]\n}"
+                },
+                "url": {
+                  "raw": "{{student_service_url}}/api/students/NEWSTUDENT999/enrollments",
+                  "host": ["{{student_service_url}}"],
+                  "path": ["api", "students", "NEWSTUDENT999", "enrollments"]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Performance and Load Tests",
+      "item": [
+        {
+          "name": "Concurrent Enrollment Test",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// This test simulates concurrent enrollments",
+                  "// In a real scenario, you'd run this multiple times simultaneously",
+                  "pm.environment.set('concurrent_student_id', 'CONC' + Math.floor(Math.random() * 1000));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Concurrent enrollment handled properly', function () {",
+                  "    // Should either succeed (201) or fail gracefully (409 for capacity)",
+                  "    pm.expect(pm.response.code).to.be.oneOf([201, 409]);",
+                  "});",
+                  "",
+                  "pm.test('Response time acceptable', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(2000); // 2 seconds",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": \"{{test_course_id_2}}\",\n  \"completedCourses\": []\n}"
+            },
+            "url": {
+              "raw": "{{student_service_url}}/api/students/{{concurrent_student_id}}/enrollments",
+              "host": ["{{student_service_url}}"],
+              "path": ["api", "students", "{{concurrent_student_id}}", "enrollments"]
+            }
+          }
+        },
+        {
+          "name": "Large Report Generation Test",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Large report generated successfully', function () {",
+                  "    pm.expect(pm.response.code).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('Report generation time acceptable', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(10000); // 10 seconds",
+                  "});",
+                  "",
+                  "pm.test('Report contains substantial data', function () {",
+                  "    const reportData = pm.response.json();",
+                  "    pm.expect(reportData.report.length).to.be.greaterThan(100); // Substantial CSV content",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{admin_service_url}}/api/reports/enrollments?includeHistorical=true&format=detailed",
+              "host": ["{{admin_service_url}}"],
+              "path": ["api", "reports", "enrollments"],
+              "query": [
+                {
+                  "key": "includeHistorical",
+                  "value": "true"
+                },
+                {
+                  "key": "format",
+                  "value": "detailed"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          "// Global setup for all requests",
+          "console.log('Starting test: ' + pm.info.requestName);",
+          "",
+          "// Set up common headers",
+          "pm.request.headers.add({",
+          "    key: 'X-Test-Run-ID',",
+          "    value: pm.environment.get('test_run_id') || 'default-run'",
+          "});",
+          "",
+          "// Track test execution time",
+          "pm.environment.set('test_start_time', new Date().toISOString());"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "exec": [
+          "// Global test validations",
+          "pm.test('Response has valid JSON (if not 204)', function () {",
+          "    if (pm.response.code !== 204) {",
+          "        pm.expect(() => pm.response.json()).to.not.throw();",
+          "    }",
+          "});",
+          "",
+          "pm.test('Response time is reasonable', function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(5000); // 5 seconds max",
+          "});",
+          "",
+          "pm.test('Response has appropriate headers', function () {",
+          "    pm.expect(pm.response.headers.has('Content-Type')).to.be.true;",
+          "});",
+          "",
+          "// Log completion",
+          "console.log('Completed test: ' + pm.info.requestName + ' in ' + pm.response.responseTime + 'ms');"
+        ]
+      }
+    }
+  ]
+}
